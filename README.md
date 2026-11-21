@@ -92,7 +92,7 @@ SENTINAL uses a centralized architecture that connects the wearable device, smar
 
 | Category | Technologies |
 |---|---|
-| Microcontroller | ESP32 |
+| Microcontroller | ESP32 C3 mini|
 | Programming | C++, JavaScript |
 | Web Development | HTML5, CSS3, JavaScript |
 | Backend | Google Apps Script |
