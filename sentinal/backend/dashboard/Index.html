@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SENTINAL Police Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--bg:#070e1a;--s1:#0f1a2b;--s2:#15253d;--line:#223552;--tx:#e9f0fa;--mu:#8da2bd;--red:#ff4d5e;--teal:#38d6d0;--grn:#3ddc97;--amb:#f0a04b;--blu:#5aa7ff}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;color:var(--tx);font-family:Inter,system-ui,"Segoe UI",Arial,sans-serif;font-size:16px;line-height:1.5;overflow-x:hidden;
+  background:radial-gradient(1100px 480px at 75% -12%,#15305a 0,transparent 60%),var(--bg)}
+img,iframe,svg,canvas{max-width:100%}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 16px;min-height:44px;min-width:44px;font-weight:600;transition:transform .12s,opacity .2s,background .2s}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.55;cursor:wait}
+button:focus-visible,input:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+
+/* ---------- header ---------- */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 28px;border-bottom:1px solid var(--line);
+  background:rgba(7,14,26,.85);backdrop-filter:blur(8px);position:sticky;top:0;z-index:1000;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:12px;min-width:0}
+.brand h1{margin:0;font-size:1.35rem;letter-spacing:.18em;color:var(--red)}
+.brand span{color:var(--mu);font-size:.8rem;letter-spacing:.14em;text-transform:uppercase}
+.right{display:flex;align-items:center;gap:14px}
+.menu{display:flex;align-items:center;gap:14px;color:var(--mu);font-size:1rem}
+.burger{display:none;background:var(--s2);color:var(--tx);font-size:1.4rem;line-height:1;padding:0;width:48px;height:48px}
+.snd{background:var(--s2);color:var(--tx);padding:8px 14px;font-size:.95rem}
+.snd.on{background:var(--teal);color:#05211f}
+.pill{display:flex;align-items:center;gap:8px;padding:9px 14px;min-height:44px;border-radius:99px;background:var(--s1);border:1px solid var(--line);font-size:.95rem;font-weight:600}
+.pill i{width:10px;height:10px;border-radius:50%;background:var(--amb)}
+.pill.ok i{background:var(--grn);animation:ring 2s infinite}
+.pill.bad i{background:var(--red)}
+@keyframes ring{0%{box-shadow:0 0 0 0 rgba(61,220,151,.6)}100%{box-shadow:0 0 0 9px rgba(61,220,151,0)}}
+
+main{max-width:1400px;margin:auto;padding:26px 28px 60px}
+h2{margin:0 0 14px;font-size:.85rem;letter-spacing:.16em;text-transform:uppercase;color:var(--mu);font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:26px}
+.stat{background:linear-gradient(160deg,var(--s2),var(--s1));border:1px solid var(--line);border-radius:18px;padding:20px 22px;transition:border-color .3s,box-shadow .3s}
+.stat p{margin:0;color:var(--mu);font-size:.8rem;letter-spacing:.14em;text-transform:uppercase}
+.stat b{display:block;font-size:2.6rem;font-weight:700;margin-top:6px;line-height:1.1}
+.stat.hot{border-color:var(--red);box-shadow:0 0 28px rgba(255,77,94,.18)}
+.stat.hot b{color:var(--red)}
+.stat.good b{color:var(--grn)}
+.stat.walk b{color:var(--blu)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:24px;align-items:start;margin-bottom:26px}
+.col{min-width:0}
+.panel{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:20px;min-width:0}
+.empty{color:var(--mu);padding:26px 10px;text-align:center;border:1px dashed var(--line);border-radius:14px;margin-bottom:14px}
+.sect{margin-bottom:26px}
+
+.alert{background:linear-gradient(160deg,#2a1522,#1a1220);border:1px solid #5b2432;border-radius:16px;padding:16px 18px;margin-bottom:14px;cursor:pointer;
+  transition:border-color .2s,transform .2s;animation:slide .35s ease}
+.alert:hover{transform:translateY(-2px)}
+.alert.sel{border-color:var(--red);box-shadow:0 0 0 1px var(--red),0 8px 30px rgba(255,77,94,.15)}
+.alert.jny{background:linear-gradient(160deg,#10243d,#0e1a2c);border-color:#244a78}
+.alert.jny.sel{border-color:var(--blu);box-shadow:0 0 0 1px var(--blu),0 8px 30px rgba(90,167,255,.15)}
+.alert.jny.bad{background:linear-gradient(160deg,#2a1522,#1a1220);border-color:#5b2432}
+@keyframes slide{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.a-top{display:flex;align-items:center;gap:10px}
+.a-top strong{font-size:1.05rem;flex:1;min-width:0;overflow-wrap:anywhere}
+.a-top .ago{color:var(--mu);font-size:.85rem;white-space:nowrap}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--red);animation:pulse 1.3s infinite;flex:none}
+.dot.blue{background:var(--blu);animation:pulseB 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,77,94,.7)}100%{box-shadow:0 0 0 12px rgba(255,77,94,0)}}
+@keyframes pulseB{0%{box-shadow:0 0 0 0 rgba(90,167,255,.7)}100%{box-shadow:0 0 0 12px rgba(90,167,255,0)}}
+.msg{margin:8px 0 4px;font-weight:500;overflow-wrap:anywhere}
+.meta{color:var(--mu);font-size:.85rem;overflow-wrap:anywhere}
+.actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.ack{background:var(--grn);color:#052016}
+.ghost{background:transparent;color:var(--tx);border:1px solid var(--line)}
+.ghost:hover{background:var(--s2)}
+.eta{font-variant-numeric:tabular-nums;font-weight:700}
+.eta.late{color:var(--red)}
+
+/* ---------- map ---------- */
+.mapwrap{position:sticky;top:84px}
+#map{width:100%;height:min(520px,62vh);min-height:300px;border-radius:14px;background:var(--s2);z-index:1}
+.leaflet-container{font-family:inherit}
+.leaflet-control-attribution{font-size:11px}
+.mapbox{border:1px dashed var(--line);border-radius:14px;padding:50px 16px;text-align:center;color:var(--mu)}
+#mapInfo{margin:0 0 12px;font-weight:500;overflow-wrap:anywhere}
+.maplink{display:none;margin-top:12px;color:var(--teal);text-decoration:none;font-weight:600;padding:12px 0;min-height:44px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;color:var(--mu);font-size:.85rem}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+
+/* ---------- history ---------- */
+.bar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;flex:1}
+.chip{background:var(--s2);color:var(--mu);padding:8px 16px;font-size:.95rem;border-radius:99px}
+.chip.on{background:var(--teal);color:#05211f}
+.bar input{background:var(--s2);border:1px solid var(--line);color:var(--tx);border-radius:10px;padding:10px 14px;min-height:44px;min-width:220px;font:inherit;flex:1 1 220px}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse}
+th{color:var(--mu);font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;text-align:left;padding:10px 12px;font-weight:600;white-space:nowrap}
+td{padding:13px 12px;border-top:1px solid var(--line);font-size:.95rem;overflow-wrap:anywhere}
+tbody tr{transition:background .15s}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover{background:var(--s2)}
+.badge{padding:4px 10px;border-radius:99px;font-size:.78rem;font-weight:700;letter-spacing:.04em;white-space:nowrap}
+.b-active{background:rgba(255,77,94,.16);color:var(--red)}
+.b-acknowledged{background:rgba(61,220,151,.16);color:var(--grn)}
+.b-cancelled{background:rgba(240,160,75,.16);color:var(--amb)}
+.b-other{background:var(--s2);color:var(--mu)}
+
+details{margin-top:6px;color:var(--mu)}
+summary{cursor:pointer;font-size:.95rem;padding:12px 0;min-height:44px}
+details .inner{display:flex;gap:12px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.test{background:var(--s2);color:var(--tx)}
+#toast{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--grn);color:#052016;font-weight:700;padding:14px 22px;border-radius:12px;
+  opacity:0;pointer-events:none;transition:.3s;max-width:92%;text-align:center;z-index:2000}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.warn{background:var(--red);color:#fff}
+#toast.info{background:var(--blu);color:#04152b}
+
+/* ---------- tablet / phone ---------- */
+@media(max-width:1000px){
+  .grid{grid-template-columns:1fr}
+  .mapwrap{position:static;order:-1}
+}
+@media(max-width:700px){
+  .top{padding:10px 16px}
+  .brand{flex:1}
+  .brand span{display:none}
+  .burger{display:inline-flex;align-items:center;justify-content:center}
+  .right{width:100%;order:3;flex-direction:column;align-items:stretch;gap:10px}
+  .menu{display:none;flex-direction:row;justify-content:space-between;padding:10px 0 4px}
+  .menu.open{display:flex}
+  .top .pill{position:absolute;right:76px;top:10px}
+  main{padding:18px 16px 50px}
+  .stats{grid-template-columns:repeat(3,1fr);gap:10px}
+  .stat{padding:14px 12px;border-radius:14px}
+  .stat p{font-size:.7rem;letter-spacing:.06em}
+  .stat b{font-size:2rem}
+  .panel{padding:14px}
+  .col-dev,.col-loc{display:none}
+  #map{height:min(380px,55vh)}
+  .actions button{flex:1 1 140px}
+  th,td{padding:12px 8px}
+}
+@media(max-width:380px){.stats{grid-template-columns:1fr 1fr 1fr}.stat b{font-size:1.7rem}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand"><h1>SENTINAL</h1><span>Emergency Response</span></div>
+  <div class="right">
+    <div class="menu" id="menu">
+      <span id="clock"></span>
+      <button class="snd" id="snd" type="button">Sound off</button>
+    </div>
+  </div>
+  <div class="pill" id="pill"><i></i><span id="pillText">Connecting</span></div>
+  <button class="burger" id="burger" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">&#9776;</button>
+</header>
+
+<main>
+  <section class="stats">
+    <div class="stat" id="stTotal"><p>Total alerts</p><b id="total">0</b></div>
+    <div class="stat" id="stActive"><p>Active emergencies</p><b id="active">0</b></div>
+    <div class="stat good"><p>Acknowledged</p><b id="ack">0</b></div>
+    <div class="stat walk"><p>Safe journeys live</p><b id="walks">0</b></div>
+  </section>
+
+  <section class="grid">
+    <div class="col">
+      <div class="sect">
+        <h2>Incoming alerts</h2>
+        <div id="alerts"><div class="empty">Waiting for emergency messages...</div></div>
+      </div>
+      <div class="sect">
+        <h2>Safe journeys</h2>
+        <div id="journeys"><div class="empty">No journeys in the last 24 hours.</div></div>
+      </div>
+    </div>
+    <div class="mapwrap panel">
+      <h2>Live location &amp; route</h2>
+      <p id="mapInfo">Select an alert or a journey to see where the person is.</p>
+      <div id="map" role="img" aria-label="Live map"></div>
+      <div class="legend">
+        <span><i style="background:#3ddc97"></i>Start</span>
+        <span><i style="background:#5aa7ff"></i>Route</span>
+        <span><i style="background:#ff4d5e"></i>Current position</span>
+      </div>
+      <a id="mapLink" class="maplink" target="_blank" rel="noopener">Open in Google Maps &rarr;</a>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Incident history</h2>
+    <div class="bar">
+      <div class="chips" id="chips">
+        <button class="chip on" data-f="ALL" type="button">All</button>
+        <button class="chip" data-f="ACTIVE" type="button">Active</button>
+        <button class="chip" data-f="ACKNOWLEDGED" type="button">Acknowledged</button>
+        <button class="chip" data-f="CANCELLED" type="button">Cancelled</button>
+      </div>
+      <input id="q" placeholder="Search name, incident or device" aria-label="Search incidents">
+    </div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Incident</th><th>User</th><th>Time</th><th class="col-dev">Device</th><th>Status</th><th class="col-loc">Location</th></tr></thead>
+        <tbody id="history"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <details>
+    <summary>Test tools</summary>
+    <div class="inner"><button class="test" type="button" onclick="sendSOS()">Send test SOS</button><span id="testStatus"></span></div>
+  </details>
+</main>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+var DATA=[],JNY=[],sel=null,loading=false,knownInc=null,knownJny=null,flt="ALL",query="",soundOn=false,ctx=null;
+var map=null,layer=null,lastKey="";
+var $=function(id){return document.getElementById(id);};
+
+function fmt(t){var d=new Date(t);return isNaN(d)?"-":d.toLocaleString([],{dateStyle:"medium",timeStyle:"short"});}
+function ago(t){
+  if(!t)return "-";
+  var s=(Date.now()-new Date(t))/1000;
+  if(isNaN(s))return "-";
+  if(s<60)return "just now";
+  if(s<3600)return Math.floor(s/60)+" min ago";
+  if(s<86400)return Math.floor(s/3600)+" h ago";
+  return new Date(t).toLocaleDateString();
+}
+function hasLoc(x){return !!x&&typeof x.lat==="number"&&typeof x.lng==="number"&&isFinite(x.lat)&&isFinite(x.lng);}
+function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
+function mmss(ms){var s=Math.abs(Math.round(ms/1000)),m=Math.floor(s/60);return (m<10?"0":"")+m+":"+(s%60<10?"0":"")+(s%60);}
+function live(j){return j.status==="ACTIVE"||j.status==="SOS"||j.status==="MISSED";}
+
+function toast(text,kind){
+  var t=$("toast");t.textContent=text;t.className="show"+(kind?" "+kind:"");
+  setTimeout(function(){t.className="";},4200);
+}
+function beep(f){
+  if(!soundOn)return;
+  try{
+    ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();
+    var o=ctx.createOscillator(),g=ctx.createGain();
+    o.frequency.value=f||880;g.gain.value=0.08;o.connect(g);g.connect(ctx.destination);
+    o.start();o.stop(ctx.currentTime+0.25);
+  }catch(e){}
+}
+$("snd").onclick=function(){soundOn=!soundOn;this.textContent=soundOn?"Sound on":"Sound off";this.className=soundOn?"snd on":"snd";beep();};
+$("burger").onclick=function(){var m=$("menu"),o=m.classList.toggle("open");this.setAttribute("aria-expanded",o?"true":"false");};
+
+function setStatus(ok,msg){
+  $("pill").className="pill "+(ok?"ok":"bad");
+  $("pillText").textContent=ok?"Connected":"Not connected";
+  $("pill").title=msg||"";
+}
+function tickClock(){$("clock").textContent=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"});}
+setInterval(function(){tickClock();updateEtas();},1000);tickClock();
+
+function setNum(id,val){
+  var e=$(id),from=Number(e.textContent)||0,t0=performance.now();
+  if(from===val){e.textContent=val;return;}
+  (function step(now){
+    var p=Math.min(1,(now-t0)/450);
+    e.textContent=Math.round(from+(val-from)*p);
+    if(p<1)requestAnimationFrame(step);
+  })(t0);
+}
+
+/* ---------- map (Leaflet + OpenStreetMap, draws the travelled route) ---------- */
+function initMap(){
+  if(map||!window.L)return;
+  map=L.map("map",{zoomControl:true,attributionControl:true}).setView([10.0,76.3],5);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
+  layer=L.layerGroup().addTo(map);
+}
+function dotIcon(color,size){
+  return L.divIcon({className:"",iconSize:[size,size],iconAnchor:[size/2,size/2],
+    html:'<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+color+';border:3px solid #fff;box-shadow:0 0 10px '+color+'"></div>'});
+}
+function showMap(){
+  initMap();
+  var info=$("mapInfo"),link=$("mapLink");
+  if(!map){info.textContent="Map could not load. Check your internet connection.";return;}
+  layer.clearLayers();
+  var pts=[],cur=null,title="",key="";
+  if(sel&&sel.type==="jny"){
+    var j=JNY.find(function(x){return x.id===sel.id;});
+    if(j){
+      pts=(j.route||[]).map(function(p){return [p[0],p[1]];});
+      if(hasLoc(j)){cur=[j.lat,j.lng];if(!pts.length)pts=[cur];}
+      title=(j.userName||j.watchId)+" - journey "+j.status.toLowerCase()+(j.locTime?" - updated "+ago(j.locTime):" - waiting for GPS");
+      key="j:"+j.id;
+    }
+  }else if(sel&&sel.type==="inc"){
+    var i=DATA.find(function(x){return x.id===sel.id;});
+    if(i&&hasLoc(i)){
+      cur=[i.lat,i.lng];pts=[cur];
+      title=(i.userName||i.deviceId)+" - "+i.status.toLowerCase()+" - updated "+ago(i.locTime);
+      key="i:"+i.id;
+    }
+  }
+  if(!pts.length){
+    info.textContent="Select an alert or a journey to see where the person is.";
+    link.style.display="none";return;
+  }
+  if(pts.length>1){
+    L.polyline(pts,{color:"#5aa7ff",weight:5,opacity:.9}).addTo(layer);
+    L.marker(pts[0],{icon:dotIcon("#3ddc97",16)}).bindTooltip("Start").addTo(layer);
+  }
+  var end=cur||pts[pts.length-1];
+  L.marker(end,{icon:dotIcon("#ff4d5e",20),zIndexOffset:1000}).bindTooltip("Current position").addTo(layer);
+  if(key!==lastKey){
+    lastKey=key;
+    if(pts.length>1)map.fitBounds(L.latLngBounds(pts),{padding:[30,30],maxZoom:18});
+    else map.setView(end,17);
+  }else if(!map.getBounds().contains(end)){map.panTo(end);}
+  setTimeout(function(){map.invalidateSize();},50);
+  info.textContent=title+(pts.length>1?" - "+pts.length+" route points":"");
+  link.href="https://www.google.com/maps?q="+end[0]+","+end[1];link.style.display="inline-block";
+}
+function pick(type,id){sel={type:type,id:id};renderAlerts();renderJourneys();showMap();
+  if(window.innerWidth<=1000)$("map").scrollIntoView({behavior:"smooth",block:"center"});}
+
+/* ---------- alerts ---------- */
+function renderAlerts(){
+  var box=$("alerts"),active=DATA.filter(function(x){return x.status==="ACTIVE";});
+  box.replaceChildren();
+  if(!active.length){box.appendChild(el("div","empty","No active emergencies. All clear."));return;}
+  active.forEach(function(i){
+    var isSel=sel&&sel.type==="inc"&&sel.id===i.id;
+    var c=el("article","alert"+(isSel?" sel":""));
+    var top=el("div","a-top");
+    top.appendChild(el("span","dot"));
+    top.appendChild(el("strong","",i.userName||"Unknown user"));
+    top.appendChild(el("span","ago",ago(i.timestamp)));
+    c.appendChild(top);
+    c.appendChild(el("p","msg",i.message||"Emergency alert"));
+    c.appendChild(el("div","meta",i.id+"  |  "+i.deviceId+"  |  "+(hasLoc(i)?i.lat.toFixed(5)+", "+i.lng.toFixed(5):"waiting for GPS fix")));
+    var a=el("div","actions");
+    var ok=el("button","ack","Acknowledge");
+    ok.onclick=function(e){e.stopPropagation();ok.disabled=true;acknowledge(i.id);};
+    a.appendChild(ok);
+    if(hasLoc(i)){
+      var m=el("button","ghost","Locate on map");
+      m.onclick=function(e){e.stopPropagation();pick("inc",i.id);};
+      a.appendChild(m);
+    }
+    c.appendChild(a);
+    c.onclick=function(){if(hasLoc(i))pick("inc",i.id);};
+    box.appendChild(c);
+  });
+}
+
+/* ---------- safe journeys ---------- */
+function renderJourneys(){
+  var box=$("journeys");
+  box.replaceChildren();
+  if(!JNY.length){box.appendChild(el("div","empty","No journeys in the last 24 hours."));return;}
+  JNY.forEach(function(j){
+    var isSel=sel&&sel.type==="jny"&&sel.id===j.id;
+    var bad=j.status==="SOS"||j.status==="MISSED";
+    var c=el("article","alert jny"+(bad?" bad":"")+(isSel?" sel":""));
+    var top=el("div","a-top");
+    top.appendChild(el("span",bad?"dot":(live(j)?"dot blue":"")));
+    top.appendChild(el("strong","",(j.userName||j.watchId)+(j.note?" \u2192 "+j.note:"")));
+    top.appendChild(el("span","ago",ago(j.started)));
+    c.appendChild(top);
+    var msg=el("p","msg");
+    var label={ACTIVE:"Safe journey in progress",SOS:"SOS during journey",MISSED:"Missed check-in",ARRIVED:"Arrived safely",ENDED:"Journey ended"}[j.status]||j.status;
+    msg.appendChild(document.createTextNode(label));
+    if(j.status==="ACTIVE"){
+      msg.appendChild(document.createTextNode(" - due in "));
+      var e=el("span","eta","");e.setAttribute("data-exp",j.expected);msg.appendChild(e);
+    }
+    c.appendChild(msg);
+    c.appendChild(el("div","meta",j.id+"  |  "+(j.route&&j.route.length?j.route.length+" route points":"no GPS yet")+(j.locTime?"  |  last seen "+ago(j.locTime):"")));
+    var a=el("div","actions");
+    var b=el("button","ghost","Track route");
+    b.onclick=function(e){e.stopPropagation();pick("jny",j.id);};
+    a.appendChild(b);
+    c.appendChild(a);
+    c.onclick=function(){pick("jny",j.id);};
+    box.appendChild(c);
+  });
+  updateEtas();
+}
+function updateEtas(){
+  var list=document.querySelectorAll(".eta");
+  for(var k=0;k<list.length;k++){
+    var left=Number(list[k].getAttribute("data-exp"))-Date.now();
+    list[k].textContent=left>=0?mmss(left):"overdue "+mmss(left);
+    list[k].className=left>=0?"eta":"eta late";
+  }
+}
+
+/* ---------- history ---------- */
+function renderHistory(){
+  var body=$("history"),q=query.toLowerCase();
+  body.replaceChildren();
+  var rows=DATA.filter(function(x){
+    if(flt!=="ALL"&&x.status!==flt)return false;
+    return !q||(x.userName+" "+x.id+" "+x.deviceId+" "+x.message).toLowerCase().indexOf(q)>=0;
+  });
+  if(!rows.length){var r=el("tr");var td=el("td","","Nothing matches.");td.colSpan=6;td.style.color="var(--mu)";r.appendChild(td);body.appendChild(r);return;}
+  rows.forEach(function(i){
+    var tr=el("tr",hasLoc(i)?"click":"");
+    tr.appendChild(el("td","",i.id));
+    tr.appendChild(el("td","",i.userName||"-"));
+    tr.appendChild(el("td","",fmt(i.timestamp)));
+    tr.appendChild(el("td","col-dev",i.deviceId));
+    var st=el("td");
+    var k=i.status==="ACTIVE"?"active":i.status==="ACKNOWLEDGED"?"acknowledged":i.status==="CANCELLED"?"cancelled":"other";
+    st.appendChild(el("span","badge b-"+k,i.status));
+    tr.appendChild(st);
+    tr.appendChild(el("td","col-loc",hasLoc(i)?"View map":"-"));
+    if(hasLoc(i))tr.onclick=function(){pick("inc",i.id);window.scrollTo({top:0,behavior:"smooth"});};
+    body.appendChild(tr);
+  });
+}
+
+$("chips").onclick=function(e){
+  var b=e.target.closest(".chip");if(!b)return;
+  flt=b.getAttribute("data-f");
+  document.querySelectorAll(".chip").forEach(function(c){c.className=c===b?"chip on":"chip";});
+  renderHistory();
+};
+$("q").oninput=function(){query=this.value;renderHistory();};
+
+/* ---------- data refresh ---------- */
+function render(){
+  var active=DATA.filter(function(x){return x.status==="ACTIVE";});
+  setNum("total",DATA.length);
+  setNum("active",active.length);
+  setNum("ack",DATA.filter(function(x){return x.status==="ACKNOWLEDGED";}).length);
+  setNum("walks",JNY.filter(live).length);
+  $("stActive").className="stat"+(active.length?" hot":"");
+
+  // pop-up for new emergencies
+  var ids=active.map(function(x){return x.id;});
+  if(knownInc!==null){
+    var fresh=active.filter(function(x){return knownInc.indexOf(x.id)<0;});
+    if(fresh.length){toast("New emergency: "+(fresh[0].userName||fresh[0].deviceId),"warn");beep(880);}
+  }
+  knownInc=ids;
+
+  // pop-up for newly started safe journeys
+  var jids=JNY.map(function(x){return x.id;});
+  if(knownJny!==null){
+    var nj=JNY.filter(function(x){return knownJny.indexOf(x.id)<0&&live(x);});
+    if(nj.length){
+      toast((nj[0].userName||nj[0].watchId)+" started a Safe Journey"+(nj[0].note?" to "+nj[0].note:""),"info");
+      beep(660);
+      if(!sel||sel.type!=="inc"||!active.length)sel={type:"jny",id:nj[0].id};   // follow the new walker
+    }
+  }
+  knownJny=jids;
+
+  // choose something sensible for the map
+  var valid=sel&&(sel.type==="jny"?JNY.some(function(x){return x.id===sel.id;}):DATA.some(function(x){return x.id===sel.id&&hasLoc(x);}));
+  if(!valid){
+    var a0=active.find(hasLoc),j0=JNY.find(live);
+    sel=a0?{type:"inc",id:a0.id}:j0?{type:"jny",id:j0.id}:null;
+  }
+  renderAlerts();renderJourneys();renderHistory();showMap();
+}
+
+function loadAlerts(){
+  if(loading)return;
+  loading=true;
+  setTimeout(function(){loading=false;},15000);
+  google.script.run
+    .withSuccessHandler(function(inc){
+      google.script.run
+        .withSuccessHandler(function(j){loading=false;setStatus(true);DATA=inc;JNY=j||[];try{render();}catch(e){console.error(e);}})
+        .withFailureHandler(function(err){   // journeys failing must not hide the incidents
+          loading=false;setStatus(true);DATA=inc;console.error(err);try{render();}catch(e){console.error(e);}
+        })
+        .getJourneys();
+    })
+    .withFailureHandler(function(err){
+      loading=false;
+      setStatus(false,err&&err.message?err.message:"");
+      console.error(err);
+    })
+    .getIncidents();
+}
+
+function sendSOS(){
+  $("testStatus").textContent="Sending...";
+  google.script.run
+    .withSuccessHandler(function(r){$("testStatus").textContent=r.success?"Test alert saved":"Test failed";loadAlerts();})
+    .withFailureHandler(function(e){$("testStatus").textContent="Error: "+e.message;})
+    .createTestIncident();
+}
+
+function acknowledge(id){
+  google.script.run
+    .withSuccessHandler(function(r){
+      if(r.success)toast("Acknowledged. The user has been notified.");
+      else toast("Could not acknowledge. The user may have cancelled this alert.","warn");
+      loadAlerts();
+    })
+    .withFailureHandler(function(e){toast("Error: "+e.message,"warn");loadAlerts();})
+    .acknowledgeIncident(id);
+}
+
+window.addEventListener("load",function(){initMap();});
+window.addEventListener("resize",function(){if(map)map.invalidateSize();});
+loadAlerts();
+setInterval(loadAlerts,5000);
+</script>
+</body>
+</html>

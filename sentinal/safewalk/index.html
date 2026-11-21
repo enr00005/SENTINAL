@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070e1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<title>SENTINAL SafeWalk</title>
+<style>
+:root{--bg:#070e1a;--s1:#0f1a2b;--s2:#15253d;--line:#223552;--tx:#e9f0fa;--mu:#8da2bd;--red:#ff4d5e;--teal:#38d6d0;--grn:#3ddc97;--amb:#f0a04b;--blu:#5aa7ff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:16px;line-height:1.5}
+body{padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom);background:radial-gradient(600px 300px at 80% -5%,#15305a,transparent 65%),var(--bg);min-height:100vh;overflow-x:hidden}
+img,iframe,svg,canvas{max-width:100%}
+.wrap{max-width:480px;margin:auto;padding:14px 0 40px}
+.wrap.wide{max-width:1000px}
+
+/* header with collapsible menu */
+.hdr{display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative;margin-bottom:18px}
+h1{margin:0;font-size:1.25rem;letter-spacing:.18em;color:var(--red)}
+.sub{color:var(--mu);font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;margin:2px 0 0}
+.burger{display:none;width:48px;height:48px;margin:0;padding:0;font-size:1.5rem;line-height:1;border-radius:12px}
+.burger.show{display:block}
+.menu{display:none;position:absolute;right:0;top:56px;z-index:2000;background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:8px;min-width:200px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.menu.open{display:block}
+.menu button{margin:0;text-align:left;background:none;font-weight:600}
+
+.card{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:16px}
+label{display:block;color:var(--mu);font-size:.95rem;margin:12px 0 6px}
+input{width:100%;background:var(--s2);border:1px solid var(--line);color:var(--tx);border-radius:12px;padding:13px;min-height:48px;font:inherit;font-size:1rem}
+input:focus-visible,button:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+button{font:inherit;font-size:1rem;font-weight:700;border:0;border-radius:14px;padding:15px;min-height:48px;width:100%;cursor:pointer;margin-top:12px;color:var(--tx);background:var(--s2)}
+button:active{transform:scale(.98)}
+button:disabled{opacity:.5}
+.go{background:var(--teal);color:#05211f;font-size:1.05rem}
+.ok{background:var(--grn);color:#052016}
+.link{background:none;color:var(--mu);font-weight:500;font-size:1rem}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{width:auto;margin:0;padding:10px 18px;min-height:44px;border-radius:99px;font-size:1rem;background:var(--s2);color:var(--mu)}
+.chip.on{background:var(--teal);color:#05211f}
+.hide{display:none}
+.big{font-size:4rem;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;line-height:1.1}
+.big.late{color:var(--red)}
+.c{text-align:center;color:var(--mu);font-size:1rem;margin-top:6px}
+#stat{text-align:center;font-weight:600;margin-top:12px;padding:10px;border-radius:12px;background:var(--s2)}
+#stat.warn{background:rgba(255,77,94,.16);color:var(--red)}
+#stat.good{background:rgba(61,220,151,.16);color:var(--grn)}
+#sos{background:var(--red);color:#fff;font-size:1.5rem;letter-spacing:.1em;padding:30px;border-radius:99px;position:relative;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none}
+#sos i{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(0,0,0,.3)}
+#sos span{position:relative}
+#err{color:var(--red);font-size:1rem;margin-top:10px;min-height:1em}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--grn);color:#052016;font-weight:700;padding:12px 20px;border-radius:12px;opacity:0;transition:.3s;pointer-events:none;text-align:center;max-width:92%;z-index:3000}
+#toast.show{opacity:1}
+
+/* route map */
+#jmap{width:100%;height:280px;border-radius:14px;background:var(--s2);z-index:1}
+.mapcard{padding:12px}
+.mapcard .c{margin:8px 0 0}
+.leaflet-container{font-family:inherit}
+
+/* journey screen: single column on phones, two columns on wide screens */
+.jgrid{display:block}
+@media(min-width:900px){
+  .jgrid{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:24px;align-items:start}
+  #jmap{height:min(560px,70vh)}
+  .jside{position:sticky;top:16px}
+  .jgrid .mapcard{margin-bottom:0}
+}
+@media(max-width:380px){.big{font-size:3.2rem}#sos{font-size:1.25rem;padding:26px}}
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <div class="hdr">
+    <div><h1>SENTINAL</h1><div class="sub">SafeWalk</div></div>
+    <button class="burger" id="burger" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">&#9776;</button>
+    <div class="menu" id="menu"><button class="link" id="out" type="button">Log out</button></div>
+  </div>
+
+  <!-- Sign in -->
+  <section id="vAuth" class="hide">
+    <div class="card">
+      <div id="nameRow" class="hide"><label for="aName">Name</label><input id="aName" autocomplete="name"></div>
+      <label for="aEmail">Email</label><input id="aEmail" type="email" autocomplete="email">
+      <label for="aPass">Password (8+ characters)</label><input id="aPass" type="password" autocomplete="current-password">
+      <button class="go" id="aGo">Log in</button>
+      <button class="link" id="aSwap">New here? Create account</button>
+      <div id="err"></div>
+    </div>
+  </section>
+
+  <!-- Home -->
+  <section id="vHome" class="hide">
+    <div class="card">
+      <div style="font-size:1.1rem;font-weight:600">Hi <span id="hName"></span></div>
+      <div class="c" style="text-align:left">Walking somewhere? Set when you expect to arrive.</div>
+      <label for="mins">I expect to arrive in (minutes)</label>
+      <div class="chips" id="chips"></div>
+      <input id="mins" type="number" min="1" max="720" value="20" style="margin-top:10px" inputmode="numeric">
+      <label for="note">Destination (optional)</label><input id="note" maxlength="60" placeholder="e.g. Hostel gate">
+      <button class="go" id="start">Start Safe Journey</button>
+      <div id="err2" style="color:var(--red);font-size:1rem;margin-top:10px"></div>
+    </div>
+    <button class="ok hide" id="install" type="button">Install SafeWalk app</button>
+    <div class="c hide" id="iosHint">On iPhone: tap the Share button, then &ldquo;Add to Home Screen&rdquo;.</div>
+  </section>
+
+  <!-- Journey -->
+  <section id="vJny" class="hide">
+    <div class="jgrid">
+      <div class="jside">
+        <div class="card">
+          <div class="c" style="margin:0 0 4px">Time to confirm arrival</div>
+          <div class="big" id="clk">--:--</div>
+          <div class="c">Due at <span id="due"></span></div>
+          <div id="stat">Starting...</div>
+          <div class="c" id="gps">Getting GPS...</div>
+        </div>
+        <button id="sos" type="button"><i id="fill"></i><span>HOLD FOR SOS</span></button>
+        <div class="c">Hold the button for one second to alert police</div>
+        <button class="ok" id="arr">I’ve arrived safely</button>
+        <button id="ext">+10 minutes</button>
+      </div>
+      <div class="card mapcard" style="margin-top:16px">
+        <div id="jmap" role="img" aria-label="Your route so far"></div>
+        <div class="c" id="routeInfo">Your route appears here once GPS locks.</div>
+      </div>
+    </div>
+  </section>
+</div>
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// ====== CONFIG: paste your values ======
+var API = 'ADD_YOUR_URL';
+var KEY = 'ADD_YOUR_KEY';   // same as APP_SECRET in SafeWalk.gs
+// =======================================
+
+var $ = function (id) { return document.getElementById(id); };
+var S = {}; try { S = JSON.parse(localStorage.getItem('sw') || '{}'); } catch (e) {}
+function save() { try { localStorage.setItem('sw', JSON.stringify(S)); } catch (e) {} }
+function show(id) {
+  ['vAuth', 'vHome', 'vJny'].forEach(function (v) { $(v).className = v === id ? '' : 'hide'; });
+  $('wrap').className = 'wrap' + (id === 'vJny' ? ' wide' : '');
+  $('burger').className = 'burger' + (id === 'vAuth' ? '' : ' show');
+  $('menu').className = 'menu';
+  if (id === 'vJny') setTimeout(function () { if (map) map.invalidateSize(); drawRoute(); }, 100);
+}
+function toast(t) { var e = $('toast'); e.textContent = t; e.className = 'show'; setTimeout(function () { e.className = ''; }, 3500); }
+
+// collapsible menu
+$('burger').onclick = function () {
+  var o = $('menu').classList.toggle('open'); this.setAttribute('aria-expanded', o ? 'true' : 'false');
+};
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('.menu') && !e.target.closest('#burger')) $('menu').className = 'menu';
+});
+
+function api(action, d) {
+  var payload = Object.assign({ action: action, token: S.token }, d || {});
+  return fetch(API, { method: 'POST', body: JSON.stringify({ secret: KEY, payload: payload }) })
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (!j.success) {
+        if (/Session expired/i.test(j.message || '')) { logout(true); }
+        throw new Error(j.message || 'Request failed');
+      }
+      return j;
+    });
+}
+
+// ---------- GPS ----------
+var pos = null, gpsId = null, wl = null;
+var trail = [];   // route recorded on this phone (used when the server list is not back yet)
+function startGPS() {
+  if (gpsId !== null) return;
+  if (!navigator.geolocation) { $('gps').textContent = 'GPS not supported on this device'; return; }
+  gpsId = navigator.geolocation.watchPosition(function (p) {
+    pos = { lat: p.coords.latitude, lng: p.coords.longitude, t: Date.now() };
+    $('gps').textContent = 'GPS locked (±' + Math.round(p.coords.accuracy) + ' m)';
+    var l = trail[trail.length - 1];
+    if (!l || Math.abs(l[0] - pos.lat) + Math.abs(l[1] - pos.lng) > 0.00006) { trail.push([pos.lat, pos.lng]); drawRoute(); }
+  }, function (e) {
+    $('gps').textContent = e.code === 1 ? 'Location permission denied. Enable it in browser settings.' : 'Waiting for GPS...';
+  }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
+  try { navigator.wakeLock.request('screen').then(function (l) { wl = l; }); } catch (e) {}
+}
+function stopGPS() {
+  if (gpsId !== null) navigator.geolocation.clearWatch(gpsId);
+  gpsId = null; pos = null;
+  try { if (wl) wl.release(); } catch (e) {}
+}
+function loc() { return pos ? { lat: pos.lat, lng: pos.lng, locAge: Math.round((Date.now() - pos.t) / 1000) } : {}; }
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden && S.jid) { try { navigator.wakeLock.request('screen').then(function (l) { wl = l; }); } catch (e) {} ping(); }
+});
+
+// ---------- route map ----------
+var map = null, line = null, startM = null, nowM = null, fitted = false, serverRoute = [];
+function dot(color, size) {
+  return L.divIcon({ className: '', iconSize: [size, size], iconAnchor: [size / 2, size / 2],
+    html: '<div style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:' + color + ';border:3px solid #fff;box-shadow:0 0 8px ' + color + '"></div>' });
+}
+function initMap() {
+  if (map || !window.L || !$('jmap')) return;
+  map = L.map('jmap', { zoomControl: true }).setView([10.0, 76.3], 5);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+}
+function drawRoute() {
+  if ($('vJny').className === 'hide') return;
+  initMap(); if (!map) return;
+  // the server copy is the full history; the phone's own trail is only newer positions
+  var pts = serverRoute.length ? serverRoute.map(function (p) { return [p[0], p[1]]; }) : trail.slice();
+  if (pos) pts.push([pos.lat, pos.lng]);
+  if (!pts.length) return;
+  if (line) map.removeLayer(line);
+  line = L.polyline(pts, { color: '#5aa7ff', weight: 5, opacity: .9 }).addTo(map);
+  if (!startM) startM = L.marker(pts[0], { icon: dot('#3ddc97', 16) }).addTo(map);
+  startM.setLatLng(pts[0]);
+  var end = pts[pts.length - 1];
+  if (!nowM) nowM = L.marker(end, { icon: dot('#ff4d5e', 20), zIndexOffset: 1000 }).addTo(map);
+  nowM.setLatLng(end);
+  if (!fitted || pts.length < 3) { map.setView(end, 17); fitted = pts.length > 1; }
+  else if (!map.getBounds().contains(end)) map.panTo(end);
+  $('routeInfo').textContent = pts.length > 1 ? 'Route so far: ' + pts.length + ' points. Police can see this live.' : 'Location shared with police.';
+}
+function resetRoute() {
+  trail = []; serverRoute = []; fitted = false;
+  if (map) { if (line) map.removeLayer(line); if (startM) map.removeLayer(startM); if (nowM) map.removeLayer(nowM); }
+  line = startM = nowM = null;
+  $('routeInfo').textContent = 'Your route appears here once GPS locks.';
+}
+
+// ---------- auth ----------
+var reg = false;
+$('aSwap').onclick = function () {
+  reg = !reg;
+  $('nameRow').className = reg ? '' : 'hide';
+  $('aGo').textContent = reg ? 'Create account' : 'Log in';
+  $('aSwap').textContent = reg ? 'Have an account? Log in' : 'New here? Create account';
+};
+$('aGo').onclick = function () {
+  var b = $('aGo'); b.disabled = true; $('err').textContent = '';
+  api(reg ? 'register' : 'login', { name: $('aName').value, email: $('aEmail').value, password: $('aPass').value })
+    .then(function (j) { S = { token: j.token, name: j.user.name }; save(); home(); })
+    .catch(function (e) { $('err').textContent = e.message; })
+    .then(function () { b.disabled = false; });
+};
+function logout(expired) {
+  stopJourneyTimers(); stopGPS(); resetRoute(); S = {}; save(); show('vAuth');
+  if (expired) $('err').textContent = 'Session expired. Please log in again.';
+}
+$('out').onclick = function () { api('logout').catch(function () {}); logout(); };
+
+// ---------- home ----------
+[10, 20, 30, 45, 60].forEach(function (m) {
+  var b = document.createElement('button'); b.className = 'chip' + (m === 20 ? ' on' : ''); b.textContent = m + ' min';
+  b.onclick = function () {
+    $('mins').value = m;
+    document.querySelectorAll('.chip').forEach(function (c) { c.className = 'chip'; }); b.className = 'chip on';
+  };
+  $('chips').appendChild(b);
+});
+function home() { $('hName').textContent = S.name || ''; $('err2').textContent = ''; show('vHome'); }
+
+$('start').onclick = function () {
+  var b = $('start'); b.disabled = true; b.textContent = 'Getting your location...'; $('err2').textContent = '';
+  startGPS();
+  var tries = 0;
+  (function wait() {
+    if (pos || tries++ > 12) {
+      resetRoute();
+      api('journeyStart', Object.assign({ minutes: $('mins').value, note: $('note').value }, loc()))
+        .then(function (j) { S.jid = j.journeyId; S.exp = j.expectedAt; save(); journey(); if (window.onJourneyStarted) window.onJourneyStarted(j); })
+        .catch(function (e) { $('err2').textContent = e.message; stopGPS(); })
+        .then(function () { b.disabled = false; b.textContent = 'Start Safe Journey'; });
+    } else setTimeout(wait, 500);
+  })();
+};
+
+// ---------- journey ----------
+var tick = null, pinger = null, pinging = false, last = {};
+function journey() {
+  show('vJny'); startGPS(); render();
+  stopJourneyTimers();
+  tick = setInterval(render, 1000);
+  pinger = setInterval(ping, 15000);
+  ping();
+}
+function stopJourneyTimers() { clearInterval(tick); clearInterval(pinger); }
+function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+function render() {
+  var left = Math.round((S.exp - Date.now()) / 1000), c = $('clk');
+  if (left >= 0) { c.className = 'big'; c.textContent = pad(Math.floor(left / 60)) + ':' + pad(left % 60); }
+  else { c.className = 'big late'; c.textContent = 'OVERDUE'; if (!last.status || last.status === 'ACTIVE') ping(); }
+  $('due').textContent = new Date(S.exp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  var s = $('stat'), st = last.status, inc = last.incidentStatus;
+  if (inc === 'ACKNOWLEDGED') { s.className = 'good'; s.textContent = 'Police acknowledged. Help is on the way.'; }
+  else if (st === 'SOS') { s.className = 'warn'; s.textContent = 'SOS sent. Police have been alerted.'; }
+  else if (st === 'MISSED') { s.className = 'warn'; s.textContent = 'Check-in missed. Police alerted. If you’re fine, tap “I’ve arrived safely”.'; }
+  else { s.className = ''; s.textContent = 'Journey in progress. Stay safe.'; }
+}
+
+function ping() {
+  if (!S.jid || pinging) return;
+  pinging = true;
+  api('journeyPing', Object.assign({ journeyId: S.jid }, loc()))
+    .then(function (j) {
+      last = j; if (j.expectedAt) { S.exp = j.expectedAt; save(); }
+      if (j.route && j.route.length) serverRoute = j.route;
+      if (j.status === 'ARRIVED' || j.status === 'ENDED') finish();
+      render(); drawRoute();
+    })
+    .catch(function () { $('stat').textContent = 'No connection. Retrying...'; })
+    .then(function () { pinging = false; });
+}
+
+function finish() {
+  stopJourneyTimers(); stopGPS(); resetRoute(); S.jid = null; S.exp = null; last = {}; save(); home();
+}
+
+$('arr').onclick = function () {
+  var b = $('arr'); b.disabled = true;
+  api('journeyArrive', Object.assign({ journeyId: S.jid }, loc()))
+    .then(function () { finish(); toast('Arrival confirmed. Glad you’re safe!'); })
+    .catch(function (e) { toast(e.message); })
+    .then(function () { b.disabled = false; });
+};
+$('ext').onclick = function () {
+  api('journeyExtend', { journeyId: S.jid, minutes: 10 })
+    .then(function (j) { S.exp = j.expectedAt; save(); render(); toast('Added 10 minutes'); })
+    .catch(function (e) { toast(e.message); });
+};
+
+// Hold-to-send SOS (1 second) to avoid accidental alerts
+var hold = null, t0 = 0, raf = 0;
+function sosDown(e) {
+  e.preventDefault(); t0 = Date.now();
+  (function anim() {
+    var p = Math.min(1, (Date.now() - t0) / 1000); $('fill').style.width = (p * 100) + '%';
+    if (p < 1) raf = requestAnimationFrame(anim);
+  })();
+  hold = setTimeout(sendSOS, 1000);
+}
+function sosUp() { clearTimeout(hold); cancelAnimationFrame(raf); $('fill').style.width = '0'; }
+$('sos').addEventListener('pointerdown', sosDown);
+['pointerup', 'pointerleave', 'pointercancel'].forEach(function (n) { $('sos').addEventListener(n, sosUp); });
+
+function sendSOS() {
+  sosUp();
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  api('journeySOS', Object.assign({ journeyId: S.jid }, loc()))
+    .then(function (j) { last = j; render(); toast('SOS sent to police'); })
+    .catch(function (e) { toast('SOS failed: ' + e.message + '. Call emergency services!'); });
+}
+
+// ---------- install ----------
+var deferredInstall = null;
+window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferredInstall = e; $('install').classList.remove('hide'); });
+$('install').onclick = function () {
+  if (!deferredInstall) return;
+  deferredInstall.prompt();
+  deferredInstall.userChoice.then(function () {}, function () {}).then(function () { deferredInstall = null; $('install').classList.add('hide'); });
+};
+window.addEventListener('appinstalled', function () { $('install').classList.add('hide'); toast('SafeWalk installed'); });
+var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+var isStandalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
+if (isIOS && !isStandalone) $('iosHint').classList.remove('hide');
+
+// ---------- boot ----------
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+if (S.token && S.jid) journey();
+else if (S.token) home();
+else show('vAuth');
+</script>
+<script src="trips.js"></script>
+<script src="chatbot.js"></script>
+</body>
+</html>
